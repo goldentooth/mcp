@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
         - name: goldentooth-mcp
-          image: registry.docker-registry.svc.cluster.local:5000/goldentooth-mcp:latest
+          image: registry.goldentooth.net/goldentooth-mcp:latest
           ports:
             - name: dev
               containerPort: 8080

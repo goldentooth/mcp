@@ -1,5 +1,5 @@
 # Stage 1: Build for ARM64
-FROM rust:1.87-bookworm AS builder
+FROM rust:1.88-bookworm AS builder
 
 RUN apt-get update && apt-get install -y \
     gcc-aarch64-linux-gnu \
