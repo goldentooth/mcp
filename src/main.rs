@@ -1,8 +1,7 @@
 mod config;
-mod tools;
 
 use config::Config;
-use tools::version::GoldentoothMcp;
+use goldentooth_mcp::tools::version::GoldentoothMcp;
 
 use hyper_util::{
     rt::{TokioExecutor, TokioIo},
