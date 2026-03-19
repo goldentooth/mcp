@@ -1,0 +1,21 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build and push Docker image
+        uses: docker://gcr.io/kaniko-project/executor:latest
+        with:
+          args: >-
+            --dockerfile=Dockerfile
+            --context=.
+            --destination=registry.goldentooth.net/goldentooth-mcp:${{ github.sha }}
+            --destination=registry.goldentooth.net/goldentooth-mcp:latest
+            --skip-tls-verify
