@@ -19,3 +19,4 @@ jobs:
             --destination=registry.goldentooth.net/goldentooth-mcp:${{ github.sha }}
             --destination=registry.goldentooth.net/goldentooth-mcp:latest
             --skip-tls-verify
+
