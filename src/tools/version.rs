@@ -35,6 +35,35 @@ impl GoldentoothMcp {
             serde_json::to_string_pretty(&info).unwrap(),
         )]))
     }
+
+    #[tool(description = "List all Raspberry Pi nodes in the bramble cluster with their hardware info")]
+    fn list_nodes(&self) -> Result<CallToolResult, McpError> {
+        let nodes = serde_json::json!({
+            "cluster": "goldentooth",
+            "nodes": [
+                {"name": "allyrion",  "model": "Pi 4B", "role": "worker"},
+                {"name": "bettley",   "model": "Pi 4B", "role": "worker"},
+                {"name": "cargyll",   "model": "Pi 4B", "role": "worker"},
+                {"name": "dalt",      "model": "Pi 4B", "role": "worker"},
+                {"name": "erenford",  "model": "Pi 4B", "role": "worker"},
+                {"name": "fenn",      "model": "Pi 4B", "role": "worker"},
+                {"name": "gardener",  "model": "Pi 4B", "role": "worker"},
+                {"name": "harlton",   "model": "Pi 4B", "role": "worker"},
+                {"name": "inchfield", "model": "Pi 4B", "role": "worker"},
+                {"name": "jast",      "model": "Pi 4B", "role": "worker"},
+                {"name": "karstark",  "model": "Pi 4B", "role": "worker"},
+                {"name": "lipps",     "model": "Pi 4B", "role": "worker"},
+                {"name": "manderly",  "model": "Pi 5",  "role": "worker"},
+                {"name": "norcross",  "model": "Pi 5",  "role": "worker"},
+                {"name": "oakheart",  "model": "Pi 5",  "role": "worker"},
+                {"name": "payne",     "model": "Pi 5",  "role": "worker"},
+            ],
+            "total": 16,
+        });
+        Ok(CallToolResult::success(vec![Content::text(
+            serde_json::to_string_pretty(&nodes).unwrap(),
+        )]))
+    }
 }
 
 #[tool_handler]
