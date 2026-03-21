@@ -1,4 +1,5 @@
 pub mod cluster;
+pub mod observability;
 pub mod version;
 
 use rmcp::{ErrorData as McpError, model::ErrorCode};

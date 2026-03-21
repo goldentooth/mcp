@@ -7,6 +7,7 @@ use rmcp::{
 };
 
 use super::cluster::{self, NamespaceFilter};
+use super::observability::{self, LogQuery, MetricQuery};
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 const BUILD_SHA: &str = match option_env!("BUILD_SHA") {
@@ -18,6 +19,7 @@ const BUILD_SHA: &str = match option_env!("BUILD_SHA") {
 pub struct GoldentoothMcp {
     tool_router: ToolRouter<GoldentoothMcp>,
     kube_client: Option<Client>,
+    http_client: reqwest::Client,
 }
 
 #[tool_router]
@@ -26,6 +28,7 @@ impl GoldentoothMcp {
         Self {
             tool_router: Self::tool_router(),
             kube_client,
+            http_client: reqwest::Client::new(),
         }
     }
 
@@ -39,6 +42,8 @@ impl GoldentoothMcp {
         })
     }
 
+    // ── Static tools ──────────────────────────────────────────────
+
     #[tool(description = "Get the MCP server version, build info, and server name")]
     fn get_version(&self) -> Result<CallToolResult, McpError> {
         let info = serde_json::json!({
@@ -51,6 +56,8 @@ impl GoldentoothMcp {
             serde_json::to_string_pretty(&info).unwrap(),
         )]))
     }
+
+    // ── Kubernetes cluster tools ──────────────────────────────────
 
     #[tool(description = "Get real-time status of all Kubernetes nodes in the bramble cluster, including readiness, CPU, memory, OS, and kubelet version")]
     async fn get_node_status(&self) -> Result<CallToolResult, McpError> {
@@ -84,6 +91,34 @@ impl GoldentoothMcp {
         Parameters(input): Parameters<NamespaceFilter>,
     ) -> Result<CallToolResult, McpError> {
         cluster::get_workloads(self.require_kube()?, input.namespace.as_deref()).await
+    }
+
+    // ── Observability tools ───────────────────────────────────────
+
+    #[tool(description = "Get all cert-manager TLS certificates with their status, expiry time, renewal time, issuer, and DNS names")]
+    async fn get_certificates(&self) -> Result<CallToolResult, McpError> {
+        observability::get_certificates(self.require_kube()?).await
+    }
+
+    #[tool(description = "Get active alerts from Alertmanager with severity, status, and descriptions")]
+    async fn get_alerts(&self) -> Result<CallToolResult, McpError> {
+        observability::get_alerts(&self.http_client).await
+    }
+
+    #[tool(description = "Query logs from Loki using LogQL. Example queries: '{namespace=\"forgejo\"}', '{app=\"goldentooth-mcp\"} |= \"error\"', '{job=\"systemd-journal\"} |= \"OOM\"'")]
+    async fn query_logs(
+        &self,
+        Parameters(input): Parameters<LogQuery>,
+    ) -> Result<CallToolResult, McpError> {
+        observability::query_logs(&self.http_client, &input.query, input.limit).await
+    }
+
+    #[tool(description = "Query Prometheus metrics using PromQL. Example queries: 'up', 'node_memory_MemAvailable_bytes', 'rate(container_cpu_usage_seconds_total[5m])', 'kube_node_status_condition{condition=\"Ready\",status=\"true\"}'")]
+    async fn query_metrics(
+        &self,
+        Parameters(input): Parameters<MetricQuery>,
+    ) -> Result<CallToolResult, McpError> {
+        observability::query_metrics(&self.http_client, &input.query).await
     }
 }
 
