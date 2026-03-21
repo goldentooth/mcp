@@ -9,7 +9,7 @@ async fn test_get_version_tool() -> anyhow::Result<()> {
     use goldentooth_mcp::tools::version::GoldentoothMcp;
     use rmcp::model::*;
 
-    let server = GoldentoothMcp::new();
+    let server = GoldentoothMcp::new(None);
     let client = TestClient::default();
 
     let (server_transport, client_transport) = tokio::io::duplex(4096);

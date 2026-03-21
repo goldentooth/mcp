@@ -8,6 +8,7 @@ use hyper_util::{
     server::conn::auto::Builder,
     service::TowerToHyperService,
 };
+use kube::Client;
 use rmcp::transport::streamable_http_server::{
     StreamableHttpService, session::local::LocalSessionManager,
 };
@@ -24,9 +25,22 @@ async fn main() -> anyhow::Result<()> {
 
     let config = Config::from_env();
 
+    // Try to create an in-cluster Kubernetes client.
+    let kube_client = match Client::try_default().await {
+        Ok(client) => {
+            tracing::info!("Kubernetes client initialized (in-cluster)");
+            Some(client)
+        }
+        Err(e) => {
+            tracing::warn!("Kubernetes client not available: {e}");
+            tracing::warn!("Cluster tools will be disabled");
+            None
+        }
+    };
+
     if config.dev_enabled {
         tracing::info!("Starting dev server on {}", config.dev_addr);
-        run_dev_server(config.dev_addr).await?;
+        run_dev_server(config.dev_addr, kube_client).await?;
     } else {
         tracing::info!("Dev server disabled");
         tokio::signal::ctrl_c().await?;
@@ -35,9 +49,12 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn run_dev_server(addr: std::net::SocketAddr) -> anyhow::Result<()> {
+async fn run_dev_server(
+    addr: std::net::SocketAddr,
+    kube_client: Option<Client>,
+) -> anyhow::Result<()> {
     let service = TowerToHyperService::new(StreamableHttpService::new(
-        || Ok(GoldentoothMcp::new()),
+        move || Ok(GoldentoothMcp::new(kube_client.clone())),
         LocalSessionManager::default().into(),
         Default::default(),
     ));
