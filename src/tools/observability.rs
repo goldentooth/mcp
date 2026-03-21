@@ -276,3 +276,65 @@ pub struct MetricQuery {
     /// PromQL query string, e.g. 'up', 'node_memory_MemAvailable_bytes', 'rate(container_cpu_usage_seconds_total[5m])'
     pub query: String,
 }
+
+// In-cluster ntfy endpoint.
+const NTFY_URL: &str = "http://ntfy.ntfy.svc:80";
+
+/// Get recent ntfy notifications from the cluster-alerts topic.
+pub async fn get_notifications(
+    http: &reqwest::Client,
+    topic: &str,
+    since: Option<&str>,
+) -> Result<CallToolResult, McpError> {
+    let since = since.unwrap_or("24h");
+    let url = format!("{NTFY_URL}/{topic}/json");
+
+    let resp = http
+        .get(&url)
+        .query(&[("poll", "1"), ("since", since)])
+        .send()
+        .await
+        .map_err(tool_error)?
+        .text()
+        .await
+        .map_err(tool_error)?;
+
+    // ntfy returns newline-delimited JSON, one message per line.
+    let messages: Vec<serde_json::Value> = resp
+        .lines()
+        .filter_map(|line| serde_json::from_str(line).ok())
+        .filter(|msg: &serde_json::Value| {
+            msg.get("event").and_then(|e| e.as_str()) == Some("message")
+        })
+        .map(|msg| {
+            serde_json::json!({
+                "title": msg.get("title").and_then(|t| t.as_str()).unwrap_or(""),
+                "message": msg.get("message").and_then(|m| m.as_str()).unwrap_or(""),
+                "priority": msg.get("priority").and_then(|p| p.as_i64()).unwrap_or(3),
+                "tags": msg.get("tags").cloned().unwrap_or(serde_json::json!([])),
+                "time": msg.get("time").and_then(|t| t.as_i64()).unwrap_or(0),
+                "topic": msg.get("topic").and_then(|t| t.as_str()).unwrap_or(""),
+            })
+        })
+        .collect();
+
+    let result = serde_json::json!({
+        "notifications": messages,
+        "total": messages.len(),
+        "topic": topic,
+        "since": since,
+    });
+
+    Ok(CallToolResult::success(vec![Content::text(
+        serde_json::to_string_pretty(&result).unwrap(),
+    )]))
+}
+
+/// Input for notification queries.
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct NotificationQuery {
+    /// ntfy topic to query (e.g. 'cluster-alerts').
+    pub topic: String,
+    /// How far back to look for notifications. Accepts durations like '1h', '24h', '7d' or Unix timestamps. Default: '24h'.
+    pub since: Option<String>,
+}

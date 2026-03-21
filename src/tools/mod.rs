@@ -1,4 +1,5 @@
 pub mod cluster;
+pub mod flux;
 pub mod observability;
 pub mod version;
 

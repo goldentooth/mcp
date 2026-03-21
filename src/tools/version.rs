@@ -7,7 +7,8 @@ use rmcp::{
 };
 
 use super::cluster::{self, NamespaceFilter};
-use super::observability::{self, LogQuery, MetricQuery};
+use super::flux;
+use super::observability::{self, LogQuery, MetricQuery, NotificationQuery};
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 const BUILD_SHA: &str = match option_env!("BUILD_SHA") {
@@ -119,6 +120,31 @@ impl GoldentoothMcp {
         Parameters(input): Parameters<MetricQuery>,
     ) -> Result<CallToolResult, McpError> {
         observability::query_metrics(&self.http_client, &input.query).await
+    }
+
+    #[tool(description = "Get recent notifications from an ntfy topic. Default topic is 'cluster-alerts'. Returns messages from the last 24h by default.")]
+    async fn get_notifications(
+        &self,
+        Parameters(input): Parameters<NotificationQuery>,
+    ) -> Result<CallToolResult, McpError> {
+        observability::get_notifications(&self.http_client, &input.topic, input.since.as_deref()).await
+    }
+
+    // ── Flux GitOps tools ─────────────────────────────────────────
+
+    #[tool(description = "Get Flux Kustomization and HelmRelease reconciliation status. Shows which resources are ready/not-ready and their last applied revision.")]
+    async fn get_flux_status(&self) -> Result<CallToolResult, McpError> {
+        flux::get_flux_status(self.require_kube()?).await
+    }
+
+    #[tool(description = "Get Flux source repository status (GitRepository, HelmRepository, OCIRepository). Shows sync state, URL, and latest revision.")]
+    async fn get_flux_sources(&self) -> Result<CallToolResult, McpError> {
+        flux::get_flux_sources(self.require_kube()?).await
+    }
+
+    #[tool(description = "Get Flux image automation status (ImageRepository, ImagePolicy, ImageUpdateAutomation). Shows scanned images, latest tags, and auto-update commits.")]
+    async fn get_flux_images(&self) -> Result<CallToolResult, McpError> {
+        flux::get_flux_images(self.require_kube()?).await
     }
 }
 
